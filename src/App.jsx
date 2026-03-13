@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import * as Tone from "tone";
+import "@fontsource-variable/jetbrains-mono";
+import "@fontsource-variable/sora";
 
 const ALL_NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 const ALL_PITCHED = [];
@@ -440,10 +442,10 @@ function RateDial({ value, onChange, color, size = 90 }) {
       onMouseDown={handleStart} onTouchStart={handleStart}>
       {(() => { const sA = ((MIN_ANGLE - 90) * Math.PI) / 180, eA = ((MAX_ANGLE - 90) * Math.PI) / 180; return <path d={`M ${r * Math.cos(sA)} ${r * Math.sin(sA)} A ${r} ${r} 0 1 1 ${r * Math.cos(eA)} ${r * Math.sin(eA)}`} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={4} strokeLinecap="round" />; })()}
       {(() => { const sA = ((MIN_ANGLE - 90) * Math.PI) / 180, eA = ((angle - 90) * Math.PI) / 180; return <path d={`M ${r * Math.cos(sA)} ${r * Math.sin(sA)} A ${r} ${r} 0 ${angle - MIN_ANGLE > 180 ? 1 : 0} 1 ${r * Math.cos(eA)} ${r * Math.sin(eA)}`} fill="none" stroke={color.bg} strokeWidth={4} strokeLinecap="round" opacity={0.7} />; })()}
-      {notchAngles.map(({ angle: na, label }) => { const a = ((na - 90) * Math.PI) / 180; return (<g key={label}><line x1={(notchR-4)*Math.cos(a)} y1={(notchR-4)*Math.sin(a)} x2={(notchR+4)*Math.cos(a)} y2={(notchR+4)*Math.sin(a)} stroke="rgba(255,255,255,0.2)" strokeWidth={1.5}/><text x={labelR*Math.cos(a)} y={labelR*Math.sin(a)} fill="rgba(255,255,255,0.3)" fontSize={8} textAnchor="middle" dominantBaseline="central" style={{fontFamily:"'JetBrains Mono',monospace"}}>{label}</text></g>); })}
+      {notchAngles.map(({ angle: na, label }) => { const a = ((na - 90) * Math.PI) / 180; return (<g key={label}><line x1={(notchR-4)*Math.cos(a)} y1={(notchR-4)*Math.sin(a)} x2={(notchR+4)*Math.cos(a)} y2={(notchR+4)*Math.sin(a)} stroke="rgba(255,255,255,0.2)" strokeWidth={1.5}/><text x={labelR*Math.cos(a)} y={labelR*Math.sin(a)} fill="rgba(255,255,255,0.3)" fontSize={8} textAnchor="middle" dominantBaseline="central" style={{fontFamily:"'JetBrains Mono Variable',monospace"}}>{label}</text></g>); })}
       {(() => { const a = ((angle - 90) * Math.PI) / 180; const px = (r-16)*Math.cos(a), py = (r-16)*Math.sin(a); return (<><line x1={0} y1={0} x2={px} y2={py} stroke={color.bg} strokeWidth={2.5} strokeLinecap="round"/><circle cx={px} cy={py} r={4} fill={color.bg} filter={`drop-shadow(0 0 4px ${color.glow})`}/></>); })()}
       <circle cx={0} cy={0} r={18} fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.1)" strokeWidth={1}/>
-      <text x={0} y={1} fill={color.bg} fontSize={12} fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{fontFamily:"'JetBrains Mono',monospace"}}>{Math.round(value)}</text>
+      <text x={0} y={1} fill={color.bg} fontSize={12} fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{fontFamily:"'JetBrains Mono Variable',monospace"}}>{Math.round(value)}</text>
     </svg>
   );
 }
@@ -458,7 +460,7 @@ function TimbrePicker({ current, onSelect, onClose, color }) {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
             {TIMBRES.filter((t) => t.group === group).map((t) => (
               <button key={t.id} onClick={() => { onSelect(t.id); onClose(); }} title={t.desc}
-                style={{ background: current === t.id ? `${color.bg}22` : "rgba(255,255,255,0.03)", border: `1px solid ${current === t.id ? `${color.bg}66` : "rgba(255,255,255,0.06)"}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer", color: current === t.id ? color.bg : "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'JetBrains Mono', monospace", transition: "all 0.15s" }}>
+                style={{ background: current === t.id ? `${color.bg}22` : "rgba(255,255,255,0.03)", border: `1px solid ${current === t.id ? `${color.bg}66` : "rgba(255,255,255,0.06)"}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer", color: current === t.id ? color.bg : "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'JetBrains Mono Variable', monospace", transition: "all 0.15s" }}>
                 {t.label}
               </button>
             ))}
@@ -599,7 +601,7 @@ function StepSequencer({ steps, onChange, color, currentStep, isPercTimbre, scal
                       background: step.active ? `${color.bg}${currentStep === i ? '44' : '22'}` : "rgba(255,255,255,0.02)",
                       border: `1px solid ${step.active ? `${color.bg}${currentStep === i ? '88' : '44'}` : "rgba(255,255,255,0.06)"}`,
                       color: step.active ? color.bg : "rgba(255,255,255,0.15)",
-                      fontSize: 10, fontFamily: "'JetBrains Mono', monospace", transition: "all 0.1s",
+                      fontSize: 10, fontFamily: "'JetBrains Mono Variable', monospace", transition: "all 0.1s",
                     }}
                   >{step.active ? "●" : "○"}</button>
                 ) : (
@@ -625,13 +627,12 @@ function StepSequencer({ steps, onChange, color, currentStep, isPercTimbre, scal
                       background: isTied
                         ? `${color.bg}${currentStep === i ? '33' : '15'}`
                         : currentStep === i ? `${color.bg}22` : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${
-                        isTied ? `${color.bg}55`
-                        : currentStep === i ? `${color.bg}66` : "rgba(255,255,255,0.08)"
-                      }`,
-                      borderLeft: isTied ? `1px solid ${color.bg}33` : undefined,
+                      borderTop: `1px solid ${isTied ? `${color.bg}55` : currentStep === i ? `${color.bg}66` : "rgba(255,255,255,0.08)"}`,
+                      borderRight: `1px solid ${isTied ? `${color.bg}55` : currentStep === i ? `${color.bg}66` : "rgba(255,255,255,0.08)"}`,
+                      borderBottom: `1px solid ${isTied ? `${color.bg}55` : currentStep === i ? `${color.bg}66` : "rgba(255,255,255,0.08)"}`,
+                      borderLeft: `1px solid ${isTied ? `${color.bg}33` : currentStep === i ? `${color.bg}66` : "rgba(255,255,255,0.08)"}`,
                       color: currentStep === i ? color.bg : isTied ? `${color.bg}aa` : "rgba(255,255,255,0.5)",
-                      fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 10, fontFamily: "'JetBrains Mono Variable', monospace",
                       outline: "none", textAlign: "center", padding: "0 2px", transition: "all 0.1s",
                     }}
                   >
@@ -651,7 +652,7 @@ function StepSequencer({ steps, onChange, color, currentStep, isPercTimbre, scal
                         color: isTied ? color.bg : tieConnectable ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.06)",
                         fontSize: 9, cursor: tieConnectable || isTied ? "pointer" : "default",
                         padding: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "'JetBrains Mono Variable', monospace",
                       }}
                     >⌒</button>
                   )}
@@ -680,12 +681,12 @@ function StepSequencer({ steps, onChange, color, currentStep, isPercTimbre, scal
                 background: "transparent", border: "1px dashed rgba(255,255,255,0.1)",
                 color: "rgba(255,255,255,0.15)", fontSize: 14,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "'JetBrains Mono Variable', monospace",
               }}>+</button>
           </div>
         )}
       </div>
-      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.1)", fontFamily: "'JetBrains Mono', monospace" }}>
+      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.1)", fontFamily: "'JetBrains Mono Variable', monospace" }}>
         {steps.length === 1 ? "mono · add steps for melody" :
           `${steps.length} steps · drag to reorder · ⌒ ties same notes`}
       </div>
@@ -735,7 +736,7 @@ function VoiceLine({ line, index, color, onUpdate, onRemove, playing, currentSte
           {/* Pulse + Index */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, minWidth: 30 }}>
             <PulseRing active={pulse && !line.muted} color={color} />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono', monospace" }}>{String(index + 1).padStart(2, "0")}</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono Variable', monospace" }}>{String(index + 1).padStart(2, "0")}</span>
           </div>
 
           {/* Dial */}
@@ -760,7 +761,7 @@ function VoiceLine({ line, index, color, onUpdate, onRemove, playing, currentSte
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <div style={{ position: "relative" }}>
               <button onClick={() => setShowTimbrePicker(!showTimbrePicker)}
-                style={{ background: `${color.bg}12`, border: `1px solid ${color.bg}44`, borderRadius: 8, padding: "5px 12px", cursor: "pointer", color: color.bg, fontSize: 11, fontFamily: "'JetBrains Mono', monospace", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }}>
+                style={{ background: `${color.bg}12`, border: `1px solid ${color.bg}44`, borderRadius: 8, padding: "5px 12px", cursor: "pointer", color: color.bg, fontSize: 11, fontFamily: "'JetBrains Mono Variable', monospace", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }}>
                 <span style={{ fontSize: 13 }}>{isPercTimbre ? "◈" : timbreInfo.group === "FM" ? "◎" : timbreInfo.group === "Synth" ? "◉" : timbreInfo.group === "Instrument" ? "♪" : "○"}</span>
                 {timbreInfo.label}
                 <span style={{ fontSize: 8, opacity: 0.5 }}>▼</span>
@@ -785,17 +786,17 @@ function VoiceLine({ line, index, color, onUpdate, onRemove, playing, currentSte
 
           {/* Volume */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono', monospace", minWidth: 24 }}>VOL</span>
+            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono Variable', monospace", minWidth: 24 }}>VOL</span>
             <input type="range" min={-30} max={0} step={1} value={line.volume} onChange={(e) => onUpdate({ ...line, volume: Number(e.target.value) })} style={{ flex: 1, accentColor: color.bg, height: 3 }} />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: "right" }}>{line.volume}dB</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'JetBrains Mono Variable', monospace", minWidth: 30, textAlign: "right" }}>{line.volume}dB</span>
           </div>
           {/* Pan */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono', monospace", minWidth: 24 }}>PAN</span>
+            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono Variable', monospace", minWidth: 24 }}>PAN</span>
             <input type="range" min={-100} max={100} step={1} value={Math.round((line.pan || 0) * 100)}
               onChange={(e) => onUpdate({ ...line, pan: Number(e.target.value) / 100 })}
               style={{ flex: 1, accentColor: color.bg, height: 3 }} />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: "right" }}>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'JetBrains Mono Variable', monospace", minWidth: 30, textAlign: "right" }}>
               {(line.pan || 0) === 0 ? "C" : (line.pan || 0) < 0 ? `L${Math.abs(Math.round((line.pan||0)*100))}` : `R${Math.round((line.pan||0)*100)}`}
             </span>
           </div>
@@ -889,6 +890,7 @@ export default function Driftloom() {
   const [octHi, setOctHi] = useState(5);
   const [lines, setLines] = useState(() => [createDefaultLine(0, "C", "Reich Pulse"), createDefaultLine(1, "C", "Reich Pulse")]);
   const [playing, setPlaying] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => !sessionStorage.getItem("driftloom-visited"));
   const [bpm, setBpm] = useState(BPM_DEFAULT);
   const [masterVol, setMasterVol] = useState(-6);
   const [stepIndices, setStepIndices] = useState({});
@@ -1230,12 +1232,11 @@ export default function Driftloom() {
   }, [autoMode, playing]);
 
   return (
-    <div className="dl-outer" style={{ minHeight: "100vh", background: "#07070c", color: "#e8e8ec", fontFamily: "'JetBrains Mono', 'SF Mono', monospace", padding: "32px 20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Sora:wght@200;400;600;800&display=swap" rel="stylesheet" />
+    <div className="dl-outer" style={{ minHeight: "100vh", background: "#07070c", color: "#e8e8ec", fontFamily: "'JetBrains Mono Variable', 'SF Mono', monospace", padding: "32px 20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
 
       <div style={{ textAlign: "center", marginBottom: 40 }}>
-        <h1 className="dl-title" style={{ fontFamily: "'Sora', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: -1, margin: 0, background: "linear-gradient(135deg, rgb(107,184,160), rgb(123,164,212), rgb(184,139,212), rgb(212,160,123))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundSize: "300% 300%", animation: "gradShift 10s ease infinite" }}>DRIFTLOOM</h1>
-        <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 12, fontWeight: 200, letterSpacing: 6, textTransform: "uppercase", color: "rgba(255,255,255,0.25)", margin: "4px 0 0 0" }}>polyrhythm texture engine</p>
+        <h1 className="dl-title" style={{ fontFamily: "'Sora Variable', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: -1, margin: 0, background: "linear-gradient(135deg, rgb(107,184,160), rgb(123,164,212), rgb(184,139,212), rgb(212,160,123))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundSize: "300% 300%", animation: "gradShift 10s ease infinite" }}>DRIFTLOOM</h1>
+        <p style={{ fontFamily: "'Sora Variable', sans-serif", fontSize: 12, fontWeight: 200, letterSpacing: 6, textTransform: "uppercase", color: "rgba(255,255,255,0.25)", margin: "4px 0 0 0" }}>polyrhythm texture engine</p>
         <style>{`
           @keyframes gradShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
           @media (max-width: 640px) {
@@ -1273,7 +1274,7 @@ export default function Driftloom() {
               background: scaleName === p.scale && bpm === p.bpm ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.02)",
               border: `1px solid ${scaleName === p.scale && bpm === p.bpm ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.06)"}`,
               color: scaleName === p.scale && bpm === p.bpm ? "#e8e8ec" : "rgba(255,255,255,0.35)",
-              fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11, fontFamily: "'JetBrains Mono Variable', monospace",
               letterSpacing: 0.5, transition: "all 0.2s",
             }}
             onMouseEnter={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.2)"; e.target.style.color = "rgba(255,255,255,0.6)"; }}
@@ -1290,32 +1291,35 @@ export default function Driftloom() {
 
       <div className="dl-transport" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16, padding: "14px 28px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, flexWrap: "wrap", justifyContent: "center" }}>
         <button onClick={handlePlay}
-          style={{ width: 52, height: 52, borderRadius: "50%", background: playing ? "rgba(107,184,160,0.15)" : "rgba(255,255,255,0.06)", border: `2px solid ${playing ? "#6BB8A0" : "rgba(255,255,255,0.12)"}`, color: playing ? "#6BB8A0" : "#e8e8ec", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.3s ease", boxShadow: playing ? "0 0 20px rgba(107,184,160,0.3)" : "none" }}>
-          {playing ? "■" : "▶"}
+          style={{ width: 52, height: 52, borderRadius: "50%", background: playing ? "rgba(107,184,160,0.15)" : "rgba(255,255,255,0.06)", border: `2px solid ${playing ? "#6BB8A0" : "rgba(255,255,255,0.12)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.3s ease", boxShadow: playing ? "0 0 20px rgba(107,184,160,0.3)" : "none" }}>
+          {playing
+            ? <svg width="16" height="16" viewBox="0 0 18 18"><rect width="18" height="18" rx="2" fill={playing ? "#6BB8A0" : "#e8e8ec"} /></svg>
+            : <svg width="20" height="20" viewBox="0 0 20 20" style={{ marginLeft: 2 }}><polygon points="3,0 20,10 3,20" fill="#e8e8ec" /></svg>
+          }
         </button>
         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", letterSpacing: 2 }}>BPM</span>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <input type="range" min={40} max={200} value={bpm} onChange={(e) => setBpm(Number(e.target.value))} style={{ width: 80, accentColor: "#6BB8A0" }} />
-            <span style={{ fontSize: 13, color: "#6BB8A0", minWidth: 28, fontFamily: "'JetBrains Mono', monospace" }}>{bpm}</span>
+            <span style={{ fontSize: 13, color: "#6BB8A0", minWidth: 28, fontFamily: "'JetBrains Mono Variable', monospace" }}>{bpm}</span>
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", letterSpacing: 2 }}>MASTER</span>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <input type="range" min={-30} max={0} value={masterVol} onChange={(e) => setMasterVol(Number(e.target.value))} style={{ width: 60, accentColor: "#6BB8A0" }} />
-            <span style={{ fontSize: 10, color: "#6BB8A0", minWidth: 30, fontFamily: "'JetBrains Mono', monospace" }}>{masterVol}dB</span>
+            <span style={{ fontSize: 10, color: "#6BB8A0", minWidth: 30, fontFamily: "'JetBrains Mono Variable', monospace" }}>{masterVol}dB</span>
           </div>
         </div>
-        <div style={{ padding: "6px 14px", background: "rgba(255,255,255,0.04)", borderRadius: 8, fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: 1, minWidth: 50, textAlign: "center", fontFamily: "'JetBrains Mono', monospace" }}>
+        <div style={{ padding: "6px 14px", background: "rgba(255,255,255,0.04)", borderRadius: 8, fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: 1, minWidth: 50, textAlign: "center", fontFamily: "'JetBrains Mono Variable', monospace" }}>
           {polyLabel || "—"}
         </div>
         <button onClick={randomizeAll}
-          style={{ padding: "8px 14px", borderRadius: 10, cursor: "pointer", background: "rgba(123,164,212,0.08)", border: "1px solid rgba(123,164,212,0.25)", color: "#7BA4D4", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1, transition: "all 0.2s" }}>
-          ⟳ SHUFFLE
+          style={{ padding: "8px 14px", borderRadius: 10, cursor: "pointer", background: "rgba(123,164,212,0.08)", border: "1px solid rgba(123,164,212,0.25)", color: "#7BA4D4", fontSize: 11, fontFamily: "'JetBrains Mono Variable', monospace", letterSpacing: 1, transition: "all 0.2s" }}>
+          SHUFFLE
         </button>
         <button onClick={() => setAutoMode(!autoMode)}
-          style={{ padding: "8px 14px", borderRadius: 10, cursor: "pointer", background: autoMode ? "rgba(93,190,170,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${autoMode ? "rgba(93,190,170,0.4)" : "rgba(255,255,255,0.08)"}`, color: autoMode ? "#5DBEAA" : "rgba(255,255,255,0.3)", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1, transition: "all 0.3s ease", boxShadow: autoMode ? "0 0 12px rgba(93,190,170,0.15)" : "none" }}>
+          style={{ padding: "8px 14px", borderRadius: 10, cursor: "pointer", background: autoMode ? "rgba(93,190,170,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${autoMode ? "rgba(93,190,170,0.4)" : "rgba(255,255,255,0.08)"}`, color: autoMode ? "#5DBEAA" : "rgba(255,255,255,0.3)", fontSize: 11, fontFamily: "'JetBrains Mono Variable', monospace", letterSpacing: 1, transition: "all 0.3s ease", boxShadow: autoMode ? "0 0 12px rgba(93,190,170,0.15)" : "none" }}>
           {autoMode ? "AUTO ●" : "AUTO"}
         </button>
       </div>
@@ -1332,7 +1336,7 @@ export default function Driftloom() {
             <input type="range" min={0} max={100} value={Math.round(reverbMix * 100)}
               onChange={(e) => setReverbMix(Number(e.target.value) / 100)}
               style={{ width: 65, accentColor: "#A07BC4" }} />
-            <span style={{ fontSize: 10, color: "#A07BC4", minWidth: 26, fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize: 10, color: "#A07BC4", minWidth: 26, fontFamily: "'JetBrains Mono Variable', monospace" }}>
               {Math.round(reverbMix * 100)}%
             </span>
           </div>
@@ -1343,7 +1347,7 @@ export default function Driftloom() {
             <input type="range" min={0} max={100} value={Math.round(delayMix * 100)}
               onChange={(e) => setDelayMix(Number(e.target.value) / 100)}
               style={{ width: 65, accentColor: "#7BA4D4" }} />
-            <span style={{ fontSize: 10, color: "#7BA4D4", minWidth: 26, fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize: 10, color: "#7BA4D4", minWidth: 26, fontFamily: "'JetBrains Mono Variable', monospace" }}>
               {Math.round(delayMix * 100)}%
             </span>
           </div>
@@ -1355,7 +1359,7 @@ export default function Driftloom() {
               <button key={ds.label} onClick={() => setDelaySyncIdx(i)}
                 style={{
                   padding: "3px 6px", borderRadius: 4, cursor: "pointer", fontSize: 9,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "'JetBrains Mono Variable', monospace",
                   background: delaySyncIdx === i ? "rgba(123,164,212,0.15)" : "transparent",
                   border: `1px solid ${delaySyncIdx === i ? "rgba(123,164,212,0.4)" : "rgba(255,255,255,0.06)"}`,
                   color: delaySyncIdx === i ? "#7BA4D4" : "rgba(255,255,255,0.25)",
@@ -1371,12 +1375,12 @@ export default function Driftloom() {
           <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", letterSpacing: 2 }}>OCTAVES</span>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <select value={octLo} onChange={(e) => { const v = Number(e.target.value); setOctLo(v); if (v > octHi) setOctHi(v); }}
-              style={{ background: "rgba(255,255,255,0.06)", color: "#7BC4A8", border: "1px solid rgba(123,196,168,0.25)", borderRadius: 4, padding: "3px 5px", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", cursor: "pointer", outline: "none" }}>
+              style={{ background: "rgba(255,255,255,0.06)", color: "#7BC4A8", border: "1px solid rgba(123,196,168,0.25)", borderRadius: 4, padding: "3px 5px", fontSize: 11, fontFamily: "'JetBrains Mono Variable', monospace", cursor: "pointer", outline: "none" }}>
               {[2,3,4,5].map(o => <option key={o} value={o} style={{ background: "#0a0a0f" }}>{o}</option>)}
             </select>
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>—</span>
             <select value={octHi} onChange={(e) => { const v = Number(e.target.value); setOctHi(v); if (v < octLo) setOctLo(v); }}
-              style={{ background: "rgba(255,255,255,0.06)", color: "#7BC4A8", border: "1px solid rgba(123,196,168,0.25)", borderRadius: 4, padding: "3px 5px", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", cursor: "pointer", outline: "none" }}>
+              style={{ background: "rgba(255,255,255,0.06)", color: "#7BC4A8", border: "1px solid rgba(123,196,168,0.25)", borderRadius: 4, padding: "3px 5px", fontSize: 11, fontFamily: "'JetBrains Mono Variable', monospace", cursor: "pointer", outline: "none" }}>
               {[3,4,5,6].map(o => <option key={o} value={o} style={{ background: "#0a0a0f" }}>{o}</option>)}
             </select>
           </div>
@@ -1400,7 +1404,7 @@ export default function Driftloom() {
             style={{
               background: "rgba(255,255,255,0.06)", color: "#7BA4D4",
               border: "1px solid rgba(123,164,212,0.25)", borderRadius: 6,
-              padding: "5px 8px", fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+              padding: "5px 8px", fontSize: 13, fontFamily: "'JetBrains Mono Variable', monospace",
               cursor: "pointer", outline: "none",
             }}>
             {ROOT_NOTES.map(n => <option key={n} value={n} style={{ background: "#0a0a0f", color: "#eee" }}>{n}</option>)}
@@ -1416,7 +1420,7 @@ export default function Driftloom() {
             style={{
               background: "rgba(255,255,255,0.06)", color: "#7BA4D4",
               border: "1px solid rgba(123,164,212,0.25)", borderRadius: 6,
-              padding: "5px 8px", fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+              padding: "5px 8px", fontSize: 12, fontFamily: "'JetBrains Mono Variable', monospace",
               cursor: "pointer", outline: "none", maxWidth: 180,
             }}>
             {Object.entries(SCALE_GROUPS).map(([group, scales]) => (
@@ -1443,7 +1447,7 @@ export default function Driftloom() {
         ))}
         {lines.length < MAX_LINES && (
           <button onClick={addLine}
-            style={{ background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: 16, padding: 18, cursor: "pointer", color: "rgba(255,255,255,0.2)", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", transition: "all 0.2s" }}
+            style={{ background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: 16, padding: 18, cursor: "pointer", color: "rgba(255,255,255,0.2)", fontSize: 13, fontFamily: "'JetBrains Mono Variable', monospace", transition: "all 0.2s" }}
             onMouseEnter={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.2)"; e.target.style.color = "rgba(255,255,255,0.4)"; }}
             onMouseLeave={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.08)"; e.target.style.color = "rgba(255,255,255,0.2)"; }}>
             + add voice line ({lines.length}/{MAX_LINES})
@@ -1454,6 +1458,46 @@ export default function Driftloom() {
       <div style={{ marginTop: 48, textAlign: "center", color: "rgba(255,255,255,0.12)", fontSize: 10, letterSpacing: 3 }}>
         click ♫ SEQ to add melody steps · 28 timbres across 5 groups
       </div>
+
+      {showWelcome && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
+          onClick={() => { setShowWelcome(false); sessionStorage.setItem("driftloom-visited", "1"); }}>
+          <div style={{ background: "#12121a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "36px 40px", maxWidth: 400, width: "90%", fontFamily: "'Sora Variable', sans-serif" }}
+            onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 6px 0", background: "linear-gradient(135deg, #6BB8A0, #7BA4D4, #B88BD4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Welcome to Driftloom</h2>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: "0 0 28px 0", letterSpacing: 1 }}>3 steps to generative music</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0, width: 56, textAlign: "center" }}>▶</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#e8e8ec", marginBottom: 3 }}>Press play</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>Start with the default preset (Reich Pulse)</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 11, lineHeight: "22px", flexShrink: 0, width: 56, textAlign: "center", fontFamily: "'JetBrains Mono Variable', monospace", fontWeight: 700, color: "#7BA4D4" }}>SHUFFLE</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#e8e8ec", marginBottom: 3 }}>Press shuffle</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>Don't like what you hear? Randomize everything</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 13, lineHeight: "22px", flexShrink: 0, width: 56, textAlign: "center", fontFamily: "'JetBrains Mono Variable', monospace", fontWeight: 700, color: "#A07BC4" }}>AUTO</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#e8e8ec", marginBottom: 3 }}>Press auto</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>Let the music continuously evolve on its own</div>
+                </div>
+              </div>
+            </div>
+            <button onClick={() => { setShowWelcome(false); sessionStorage.setItem("driftloom-visited", "1"); }}
+              style={{ marginTop: 28, width: "100%", padding: "12px 0", background: "rgba(107,184,160,0.12)", border: "1px solid rgba(107,184,160,0.3)", borderRadius: 10, color: "#6BB8A0", fontSize: 14, fontFamily: "'Sora Variable', sans-serif", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+              onMouseEnter={(e) => { e.target.style.background = "rgba(107,184,160,0.2)"; }}
+              onMouseLeave={(e) => { e.target.style.background = "rgba(107,184,160,0.12)"; }}>
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
