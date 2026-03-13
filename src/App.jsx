@@ -1438,10 +1438,10 @@ export default function Driftloom() {
       {showWelcome && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
           onClick={() => { setShowWelcome(false); sessionStorage.setItem("driftloom-visited", "1"); }}>
-          <div style={{ background: "#12121a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "36px 40px", maxWidth: 400, width: "90%", fontFamily: "'Sora Variable', sans-serif" }}
+          <div style={{ background: "#12121a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "36px 40px", maxWidth: 450, width: "90%", fontFamily: "'Sora Variable', sans-serif" }}
             onClick={(e) => e.stopPropagation()}>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 6px 0", background: "linear-gradient(135deg, #6BB8A0, #7BA4D4, #B88BD4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Welcome to Driftloom</h2>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: "0 0 28px 0", letterSpacing: 1 }}>3 steps to generative music</p>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: "0 0 28px 0" }}>3 steps to generative music</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
                 <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0, width: 56, textAlign: "center" }}>▶</span>
