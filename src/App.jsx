@@ -1208,7 +1208,7 @@ export default function Driftloom() {
   }, [autoMode, playing]);
 
   return (
-    <div className="dl-outer" style={{ minHeight: "100vh", background: "#07070c", color: "#e8e8ec", fontFamily: "'JetBrains Mono Variable', 'SF Mono', monospace", padding: "calc(env(safe-area-inset-top, 0px) + 32px) 20px 32px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <div className="dl-outer" style={{ minHeight: "100vh", background: "#07070c", color: "#e8e8ec", fontFamily: "'JetBrains Mono Variable', 'SF Mono', monospace", padding: "calc(env(safe-area-inset-top, 0px) + 56px) 20px 32px", display: "flex", flexDirection: "column", alignItems: "center" }}>
 
       <div style={{ textAlign: "center", marginBottom: 40 }}>
         <h1 className="dl-title" style={{ fontFamily: "'Sora Variable', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: -1, margin: 0, background: "linear-gradient(135deg, rgb(107,184,160), rgb(123,164,212), rgb(184,139,212), rgb(212,160,123))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundSize: "300% 300%", animation: "gradShift 10s ease infinite" }}>DRIFTLOOM</h1>
@@ -1216,6 +1216,7 @@ export default function Driftloom() {
         <style>{`
           @keyframes gradShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
           @media (max-width: 640px) {
+            .dl-outer { padding-top: calc(env(safe-area-inset-top, 0px) + 80px) !important; }
             .dl-voice-row {
               flex-direction: column !important;
               align-items: stretch !important;
@@ -1236,7 +1237,7 @@ export default function Driftloom() {
             .dl-presets button { padding: 5px 8px !important; font-size: 10px !important; }
             .dl-palette-bar { gap: 8px !important; padding: 8px 12px !important; }
             .dl-title { font-size: 30px !important; }
-            .dl-outer { padding: 16px 8px !important; }
+            .dl-outer { padding: calc(env(safe-area-inset-top, 0px) + 48px) 8px 16px !important; }
             .dl-voice-card { padding: 12px !important; }
           }
         `}</style>
