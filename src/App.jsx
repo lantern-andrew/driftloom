@@ -1208,7 +1208,7 @@ export default function Driftloom() {
   }, [autoMode, playing]);
 
   return (
-    <div className="dl-outer" style={{ minHeight: "100vh", background: "#07070c", color: "#e8e8ec", fontFamily: "'JetBrains Mono Variable', 'SF Mono', monospace", padding: "32px 20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <div className="dl-outer" style={{ minHeight: "100vh", background: "#07070c", color: "#e8e8ec", fontFamily: "'JetBrains Mono Variable', 'SF Mono', monospace", padding: "calc(env(safe-area-inset-top, 0px) + 32px) 20px 32px", display: "flex", flexDirection: "column", alignItems: "center" }}>
 
       <div style={{ textAlign: "center", marginBottom: 40 }}>
         <h1 className="dl-title" style={{ fontFamily: "'Sora Variable', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: -1, margin: 0, background: "linear-gradient(135deg, rgb(107,184,160), rgb(123,164,212), rgb(184,139,212), rgb(212,160,123))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundSize: "300% 300%", animation: "gradShift 10s ease infinite" }}>DRIFTLOOM</h1>
