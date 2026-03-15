@@ -3,862 +3,14 @@ import * as Tone from "tone";
 import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/sora";
 
-const ALL_NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-const ALL_PITCHED = [];
-for (let oct = 2; oct <= 6; oct++) {
-  for (const n of ALL_NOTE_NAMES) {
-    ALL_PITCHED.push(`${n}${oct}`);
-    if (n === "C" && oct === 6) break;
-  }
-}
-const NOTES = ALL_PITCHED;
+import {
+  ROOT_NOTES, SCALE_GROUPS, COLORS, PRESETS, DELAY_SYNCS,
+  MAX_LINES, BPM_DEFAULT,
+} from "./constants";
+import { createSynthForTimbre, getTriggerableSynth, triggerSynthWithDuration } from "./audio";
+import { getScaleIntervals, getScaleNotes, createDefaultLine, randomInt } from "./music";
+import VoiceLine from "./components/VoiceLine";
 
-const ROOT_NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-
-const SCALES = {
-  "Reich Pulse":        [[0,4],[2,4],[4,3],[7,5],[9,3]],
-  "Reich Open":         [[0,4],[2,4],[5,4],[7,5],[10,3]],
-  "Glass":              [[0,6],[2,3],[4,5],[5,3],[7,6],[9,2],[11,2]],
-  "Adams":              [[0,5],[2,3],[4,4],[5,2],[7,5],[9,3],[11,3]],
-  "Riley":              [[0,5],[2,4],[5,4],[7,5],[10,4]],
-  "Young":              [[0,6],[5,5],[7,6]],
-  "Pärt":               [[0,8],[2,1],[4,6],[5,1],[7,7],[9,1],[11,1]],
-  "Eno":                [[0,5],[2,4],[7,5],[11,4]],
-  "Sakamoto":           [[0,5],[2,4],[4,3],[7,5],[11,4]],
-  "Feldman":            [[0,5],[2,4],[7,4],[9,4]],
-  "Xenakis":            [[0,4],[1,5],[3,2],[6,5],[7,4],[10,2]],
-  "Ligeti":             [[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2],[10,2],[11,2]],
-  "Whole Tone":         [[0,4],[2,2],[4,2],[6,2],[8,2],[10,2]],
-  "Diminished":         [[0,4],[2,1],[3,2],[5,2],[6,2],[8,2],[9,2],[11,1]],
-  "Chromatic":          [[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1],[11,1]],
-  "12-Tone":            [[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1],[11,1]],
-};
-
-function getScaleIntervals(scaleName) {
-  return (SCALES[scaleName] || SCALES["Chromatic"]).map(([i]) => i);
-}
-
-const SCALE_GROUPS = {
-  "Composer":    ["Reich Pulse","Reich Open","Glass","Adams","Riley","Young","Pärt","Eno","Sakamoto","Feldman","Ligeti","Xenakis"],
-  "Texture":     ["Whole Tone","Diminished"],
-  "Free":        ["Chromatic","12-Tone"],
-};
-
-function noteOctave(n) { return parseInt(n.match(/\d+$/)[0]); }
-function notePc(n) { return n.replace(/\d+$/, ""); }
-
-function getScaleNotes(root, scaleName, octLo = 3, octHi = 5) {
-  const intervals = getScaleIntervals(scaleName);
-  const rootIdx = ALL_NOTE_NAMES.indexOf(root);
-  if (rootIdx === -1) return ALL_PITCHED;
-  const scaleSet = new Set(intervals.map(i => ALL_NOTE_NAMES[(rootIdx + i) % 12]));
-  return ALL_PITCHED.filter(n => {
-    const oct = noteOctave(n);
-    return scaleSet.has(notePc(n)) && oct >= octLo && oct <= octHi;
-  });
-}
-
-function getWeightedPool(root, scaleName, octLo = 3, octHi = 5) {
-  const scale = SCALES[scaleName] || SCALES["Chromatic"];
-  const rootIdx = ALL_NOTE_NAMES.indexOf(root);
-  if (rootIdx === -1) return ALL_PITCHED;
-  const weightMap = {};
-  for (const [interval, weight] of scale) {
-    weightMap[ALL_NOTE_NAMES[(rootIdx + interval) % 12]] = weight;
-  }
-  const pool = [];
-  for (const note of ALL_PITCHED) {
-    const oct = noteOctave(note);
-    if (oct < octLo || oct > octHi) continue;
-    const w = weightMap[notePc(note)];
-    if (w) { for (let i = 0; i < w; i++) pool.push(note); }
-  }
-  return pool;
-}
-
-const MAX_LINES = 8;
-const MIN_RATE = 1;
-const MAX_RATE = 12;
-const BPM_DEFAULT = 120;
-const MAX_STEPS = 16;
-
-/* ─── TIMBRES ─── */
-const TIMBRES = [
-  { id: "piano",     label: "PIANO",    group: "Instrument", desc: "Hammer + string decay" },
-  { id: "epiano",    label: "E.PIANO",  group: "Instrument", desc: "Electric piano, warm" },
-  { id: "marimba",   label: "MARIMBA",  group: "Instrument", desc: "Wooden mallet tone" },
-  { id: "vibes",     label: "VIBES",    group: "Instrument", desc: "Vibraphone shimmer" },
-  { id: "strings",   label: "STRINGS",  group: "Instrument", desc: "Bowed string sustain" },
-  { id: "brass",     label: "BRASS",    group: "Instrument", desc: "Warm brass swell" },
-  { id: "flute",     label: "FLUTE",    group: "Instrument", desc: "Breathy, airy tone" },
-  { id: "reed",      label: "REED",     group: "Instrument", desc: "Clarinet-like warmth" },
-  { id: "kalimba",   label: "KALIMBA",  group: "Instrument", desc: "Thumb piano pluck" },
-  { id: "guitar",    label: "GUITAR",   group: "Instrument", desc: "Nylon string pluck" },
-  { id: "eguitar",   label: "E.GUITAR", group: "Instrument", desc: "Distorted electric" },
-  { id: "organ",     label: "ORGAN",    group: "Instrument", desc: "Drawbar organ hum" },
-  { id: "sitar",     label: "SITAR",    group: "Instrument", desc: "Metallic, buzzy string" },
-  { id: "sine",      label: "SINE",     group: "Basic", desc: "Pure tone" },
-  { id: "triangle",  label: "TRI",      group: "Basic", desc: "Soft, hollow" },
-  { id: "square",    label: "SQR",      group: "Basic", desc: "Buzzy, hollow" },
-  { id: "sawtooth",  label: "SAW",      group: "Basic", desc: "Bright, rich" },
-  { id: "fm_bell",   label: "FM BELL",  group: "FM", desc: "Glassy bell tone" },
-  { id: "fm_metal",  label: "METAL",    group: "FM", desc: "Metallic, inharmonic" },
-  { id: "fm_bass",   label: "FM BASS",  group: "FM", desc: "Deep FM thump" },
-  { id: "fm_chime",  label: "CHIME",    group: "FM", desc: "Bright chime" },
-  { id: "pluck",     label: "PLUCK",    group: "Synth", desc: "Karplus-Strong string" },
-  { id: "pad_wash",  label: "PAD",      group: "Synth", desc: "Soft sustained wash" },
-  { id: "sub",       label: "SUB",      group: "Synth", desc: "Deep sub bass" },
-  { id: "glass",     label: "GLASS",    group: "Synth", desc: "Shimmery overtones" },
-  { id: "click",     label: "CLICK",    group: "Perc", desc: "Woody click" },
-  { id: "noise_hat", label: "HAT",      group: "Perc", desc: "Filtered noise hit" },
-  { id: "drop",      label: "DROP",     group: "Perc", desc: "Pitched drop" },
-  { id: "dust",      label: "DUST",     group: "Perc", desc: "Tiny grain burst" },
-];
-const TIMBRE_GROUPS = ["Instrument", "Basic", "FM", "Synth", "Perc"];
-
-function createSynthForTimbre(t) {
-  switch (t) {
-    // ─── Instruments (rich synthesis) ───
-    case "piano": {
-      // Layered: bright attack + body decay, filtered
-      const synth = new Tone.Synth({
-        oscillator: { type: "fmtriangle", modulationType: "square", modulationIndex: 1.5, harmonicity: 4.01 },
-        envelope: { attack: 0.003, decay: 0.7, sustain: 0.05, release: 1.0 },
-      });
-      const filter = new Tone.Filter({ frequency: 4000, type: "lowpass", rolloff: -24 });
-      synth.connect(filter);
-      filter._parentSynth = synth;
-      return filter;
-    }
-    case "epiano": {
-      const synth = new Tone.FMSynth({
-        harmonicity: 2.01, modulationIndex: 4,
-        envelope: { attack: 0.005, decay: 1.0, sustain: 0.1, release: 1.2 },
-        modulation: { type: "sine" },
-        modulationEnvelope: { attack: 0.003, decay: 0.6, sustain: 0.1, release: 0.8 },
-      });
-      const chorus = new Tone.Vibrato({ frequency: 4.5, depth: 0.08 });
-      synth.connect(chorus);
-      chorus._parentSynth = synth;
-      return chorus;
-    }
-    case "marimba": {
-      // Sine with fast decay + slight FM for the woody attack
-      const synth = new Tone.FMSynth({
-        harmonicity: 4.0, modulationIndex: 2.5,
-        envelope: { attack: 0.001, decay: 0.35, sustain: 0.0, release: 0.3 },
-        modulation: { type: "sine" },
-        modulationEnvelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.1 },
-      });
-      return synth;
-    }
-    case "vibes": {
-      // Vibraphone: FM bell-like with vibrato and longer sustain
-      const synth = new Tone.FMSynth({
-        harmonicity: 3.99, modulationIndex: 8,
-        envelope: { attack: 0.001, decay: 1.5, sustain: 0.0, release: 2.0 },
-        modulation: { type: "sine" },
-        modulationEnvelope: { attack: 0.01, decay: 1.0, sustain: 0, release: 1.0 },
-      });
-      const vib = new Tone.Vibrato({ frequency: 5, depth: 0.12 });
-      synth.connect(vib);
-      vib._parentSynth = synth;
-      return vib;
-    }
-    case "strings": {
-      // Detuned saws with slow attack, filtered
-      const synth = new Tone.Synth({
-        oscillator: { type: "fatsawtooth", spread: 20, count: 3 },
-        envelope: { attack: 0.15, decay: 0.4, sustain: 0.7, release: 0.8 },
-      });
-      const filter = new Tone.Filter({ frequency: 2500, type: "lowpass", rolloff: -12 });
-      synth.connect(filter);
-      filter._parentSynth = synth;
-      return filter;
-    }
-    case "brass": {
-      // Saw with filter envelope for brass swell
-      const synth = new Tone.Synth({
-        oscillator: { type: "sawtooth" },
-        envelope: { attack: 0.08, decay: 0.3, sustain: 0.6, release: 0.4 },
-      });
-      const filter = new Tone.Filter({ frequency: 800, type: "lowpass", rolloff: -24 });
-      const autoFilter = new Tone.FrequencyShifter(0); // placeholder — use LFO
-      synth.connect(filter);
-      filter._parentSynth = synth;
-      return filter;
-    }
-    case "flute": {
-      // Sine + noise for breath, filtered
-      const synth = new Tone.Synth({
-        oscillator: { type: "sine" },
-        envelope: { attack: 0.06, decay: 0.2, sustain: 0.6, release: 0.5 },
-      });
-      const vib = new Tone.Vibrato({ frequency: 5.5, depth: 0.06 });
-      synth.connect(vib);
-      vib._parentSynth = synth;
-      return vib;
-    }
-    case "reed": {
-      // Square-ish wave, filtered for warmth, slight vibrato
-      const synth = new Tone.Synth({
-        oscillator: { type: "fmsquare", modulationType: "sine", modulationIndex: 0.8, harmonicity: 1.01 },
-        envelope: { attack: 0.04, decay: 0.25, sustain: 0.5, release: 0.4 },
-      });
-      const filter = new Tone.Filter({ frequency: 1800, type: "lowpass", rolloff: -12 });
-      const vib = new Tone.Vibrato({ frequency: 5, depth: 0.05 });
-      synth.connect(filter);
-      filter.connect(vib);
-      vib._parentSynth = synth;
-      vib._chain = [filter];
-      return vib;
-    }
-    case "kalimba": {
-      // Short plucky sine with harmonics
-      const synth = new Tone.FMSynth({
-        harmonicity: 5.01, modulationIndex: 3,
-        envelope: { attack: 0.001, decay: 0.6, sustain: 0.0, release: 0.5 },
-        modulation: { type: "triangle" },
-        modulationEnvelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.1 },
-      });
-      return synth;
-    }
-    case "guitar": {
-      // Nylon guitar: FM pluck with fast decay
-      const synth = new Tone.FMSynth({
-        harmonicity: 1.01, modulationIndex: 2,
-        envelope: { attack: 0.002, decay: 0.5, sustain: 0.0, release: 0.4 },
-        modulation: { type: "triangle" },
-        modulationEnvelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.2 },
-      });
-      const filter = new Tone.Filter({ frequency: 2500, type: "lowpass", rolloff: -12 });
-      synth.connect(filter);
-      filter._parentSynth = synth;
-      return filter;
-    }
-    case "eguitar": {
-      // Electric guitar: brighter FM pluck into distortion + cab sim
-      const synth = new Tone.FMSynth({
-        harmonicity: 1.01, modulationIndex: 3,
-        envelope: { attack: 0.001, decay: 0.6, sustain: 0.05, release: 0.5 },
-        modulation: { type: "square" },
-        modulationEnvelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.2 },
-      });
-      const dist = new Tone.Distortion({ distortion: 0.7, oversample: "2x" });
-      const mid = new Tone.Filter({ frequency: 800, type: "peaking", gain: 6, Q: 1.5 });
-      const cab = new Tone.Filter({ frequency: 3000, type: "lowpass", rolloff: -24 });
-      synth.connect(dist);
-      dist.connect(mid);
-      mid.connect(cab);
-      cab._parentSynth = synth;
-      cab._chain = [dist, mid];
-      return cab;
-    }
-    case "organ": {
-      // Additive organ: fat sine with multiple harmonics
-      const synth = new Tone.Synth({
-        oscillator: { type: "fatsine", spread: 12, count: 5 },
-        envelope: { attack: 0.01, decay: 0.1, sustain: 0.9, release: 0.3 },
-      });
-      return synth;
-    }
-    case "sitar": {
-      // FM with inharmonic ratio for buzzy metallic string
-      const synth = new Tone.FMSynth({
-        harmonicity: 1.618, modulationIndex: 12,
-        envelope: { attack: 0.005, decay: 1.0, sustain: 0.05, release: 0.8 },
-        modulation: { type: "sawtooth" },
-        modulationEnvelope: { attack: 0.005, decay: 0.5, sustain: 0.1, release: 0.5 },
-      });
-      return synth;
-    }
-    // ─── Basic ───
-    case "sine": return new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.005, decay: 0.15, sustain: 0.05, release: 0.3 } });
-    case "triangle": return new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.15, sustain: 0.05, release: 0.3 } });
-    case "square": return new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.03, release: 0.2 } });
-    case "sawtooth": return new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.005, decay: 0.12, sustain: 0.04, release: 0.25 } });
-    // ─── FM ───
-    case "fm_bell": return new Tone.FMSynth({ harmonicity: 3.01, modulationIndex: 14, envelope: { attack: 0.001, decay: 0.8, sustain: 0, release: 1.2 }, modulation: { type: "square" }, modulationEnvelope: { attack: 0.002, decay: 0.5, sustain: 0, release: 0.5 } });
-    case "fm_metal": return new Tone.FMSynth({ harmonicity: 7.5, modulationIndex: 20, envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.4 }, modulation: { type: "square" }, modulationEnvelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.3 } });
-    case "fm_bass": return new Tone.FMSynth({ harmonicity: 0.5, modulationIndex: 8, envelope: { attack: 0.001, decay: 0.4, sustain: 0.1, release: 0.3 }, modulation: { type: "sine" }, modulationEnvelope: { attack: 0.001, decay: 0.3, sustain: 0.1, release: 0.2 } });
-    case "fm_chime": return new Tone.FMSynth({ harmonicity: 5.01, modulationIndex: 10, envelope: { attack: 0.001, decay: 1.2, sustain: 0, release: 1.5 }, modulation: { type: "sine" }, modulationEnvelope: { attack: 0.01, decay: 0.8, sustain: 0, release: 0.8 } });
-    // ─── Synth ───
-    case "pluck": return new Tone.FMSynth({ harmonicity: 2.01, modulationIndex: 2, envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.3 }, modulation: { type: "triangle" }, modulationEnvelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 } });
-    case "pad_wash": return new Tone.Synth({ oscillator: { type: "fatsine", spread: 30, count: 3 }, envelope: { attack: 0.3, decay: 0.6, sustain: 0.5, release: 1.5 } });
-    case "sub": return new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 0.4 } });
-    case "glass": return new Tone.AMSynth({ harmonicity: 3.5, oscillator: { type: "sine" }, envelope: { attack: 0.005, decay: 0.6, sustain: 0, release: 0.8 }, modulation: { type: "triangle" }, modulationEnvelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.5 } });
-    // ─── Perc ───
-    case "click": return new Tone.MembraneSynth({ pitchDecay: 0.008, octaves: 2, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.03 } });
-    case "noise_hat": return new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.04 } });
-    case "drop": return new Tone.MembraneSynth({ pitchDecay: 0.15, octaves: 6, envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.15 } });
-    case "dust": return new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.001, decay: 0.02, sustain: 0, release: 0.01 } });
-    default: return new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.005, decay: 0.15, sustain: 0.05, release: 0.3 } });
-  }
-}
-
-// Get the triggerable synth from a node (might be chained through effects)
-function getTriggerableSynth(node) {
-  return node._parentSynth || node;
-}
-
-function triggerSynth(synthNode, timbreId, note, time) {
-  const synth = getTriggerableSynth(synthNode);
-  const isNoise = timbreId === "noise_hat" || timbreId === "dust";
-  if (isNoise) synth.triggerAttackRelease("32n", time);
-  else synth.triggerAttackRelease(note, "32n", time);
-}
-
-function triggerSynthWithDuration(synthNode, timbreId, note, time, durationSec) {
-  const synth = getTriggerableSynth(synthNode);
-  const isNoise = timbreId === "noise_hat" || timbreId === "dust";
-  if (isNoise) synth.triggerAttackRelease(durationSec * 0.8, time);
-  else synth.triggerAttackRelease(note, durationSec * 0.9, time);
-}
-
-const COLORS = [
-  { bg: "#6BB8A0", glow: "rgba(107,184,160,0.4)" },
-  { bg: "#7BA4D4", glow: "rgba(123,164,212,0.4)" },
-  { bg: "#B88BD4", glow: "rgba(184,139,212,0.4)" },
-  { bg: "#7BC4A8", glow: "rgba(123,196,168,0.4)" },
-  { bg: "#5DBEAA", glow: "rgba(93,190,170,0.4)" },
-  { bg: "#8DB4DE", glow: "rgba(141,180,222,0.4)" },
-  { bg: "#A07BC4", glow: "rgba(160,123,196,0.4)" },
-  { bg: "#7BC4A8", glow: "rgba(123,196,168,0.4)" },
-];
-
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-// 12-tone row: shuffled pitch classes, each must appear before any repeats
-let _twelveRow = [];
-let _twelveIdx = 0;
-function resetTwelveRow() {
-  _twelveRow = [...ALL_NOTE_NAMES].sort(() => Math.random() - 0.5);
-  _twelveIdx = 0;
-}
-function nextTwelveToneNote(octLo = 3, octHi = 5) {
-  if (_twelveIdx >= _twelveRow.length) resetTwelveRow();
-  const pc = _twelveRow[_twelveIdx++];
-  const oct = randomInt(octLo, octHi);
-  return `${pc}${oct}`;
-}
-resetTwelveRow();
-
-function randomNote(pool) {
-  return pool[randomInt(0, pool.length - 1)];
-}
-
-function generateRandomSteps(weightedPool, flatPool, scaleName, octLo, octHi) {
-  const isTwelveTone = scaleName === "12-Tone";
-  const roll = Math.random();
-  const numNotes = roll < 0.15 ? 1 : roll < 0.55 ? 2 : 3;
-  const steps = [];
-  for (let i = 0; i < numNotes; i++) {
-    const note = isTwelveTone ? nextTwelveToneNote(octLo, octHi) : randomNote(weightedPool);
-    steps.push({ note, active: true, tied: false });
-  }
-  if (steps.length >= 2 && flatPool.length >= 2) {
-    const allSame = steps.every(s => s.note === steps[0].note);
-    if (allSame) {
-      const fixIdx = randomInt(1, steps.length - 1);
-      let newNote = isTwelveTone ? nextTwelveToneNote(octLo, octHi) : randomNote(weightedPool);
-      let tries = 0;
-      while (newNote === steps[0].note && tries < 20) { newNote = isTwelveTone ? nextTwelveToneNote(octLo, octHi) : randomNote(weightedPool); tries++; }
-      steps[fixIdx].note = newNote;
-    }
-  }
-  if (steps.length >= 2 && Math.random() < 0.4) {
-    const tieIdx = randomInt(1, steps.length - 1);
-    const wouldBe = steps.map((s, i) => i === tieIdx ? steps[tieIdx - 1].note : s.note);
-    const distinct = new Set(wouldBe).size;
-    if (distinct >= 2) {
-      steps[tieIdx] = { note: steps[tieIdx - 1].note, active: true, tied: true };
-    }
-  }
-  return steps;
-}
-
-function createDefaultLine(index, root, scaleName, octLo = 3, octHi = 5, timbre = "kalimba") {
-  const weightedPool = getWeightedPool(root, scaleName, octLo, octHi);
-  const flatPool = getScaleNotes(root, scaleName, octLo, octHi);
-  const pan = Math.round((Math.random() * 1.8 - 0.9) * 100) / 100;
-  return {
-    id: Date.now() + Math.random(),
-    steps: generateRandomSteps(weightedPool, flatPool, scaleName, octLo, octHi),
-    rate: randomInt(1, MAX_RATE),
-    timbre,
-    volume: -8,
-    pan,
-    muted: false,
-  };
-}
-
-/* ─── Rate Dial ─── */
-function RateDial({ value, onChange, color, size = 90 }) {
-  const svgRef = useRef(null);
-  const dragging = useRef(false);
-  const startAngle = useRef(0);
-  const startValue = useRef(0);
-  const MIN_ANGLE = -135, MAX_ANGLE = 135;
-  const range = MAX_RATE - MIN_RATE;
-  const fraction = (value - MIN_RATE) / range;
-  const angle = MIN_ANGLE + fraction * (MAX_ANGLE - MIN_ANGLE);
-  const notchAngles = [];
-  for (let i = Math.ceil(MIN_RATE); i <= Math.floor(MAX_RATE); i++) {
-    notchAngles.push({ angle: MIN_ANGLE + ((i - MIN_RATE) / range) * (MAX_ANGLE - MIN_ANGLE), label: i });
-  }
-  const getAngleFromEvent = useCallback((e) => {
-    const rect = svgRef.current.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
-    const cX = e.touches ? e.touches[0].clientX : e.clientX;
-    const cY = e.touches ? e.touches[0].clientY : e.clientY;
-    return Math.atan2(cY - cy, cX - cx) * (180 / Math.PI);
-  }, []);
-  const handleStart = useCallback((e) => {
-    e.preventDefault(); dragging.current = true;
-    startAngle.current = getAngleFromEvent(e); startValue.current = value;
-    const handleMove = (e2) => {
-      if (!dragging.current) return; e2.preventDefault();
-      let delta = getAngleFromEvent(e2) - startAngle.current;
-      if (delta > 180) delta -= 360; if (delta < -180) delta += 360;
-      let nv = startValue.current + (delta / (MAX_ANGLE - MIN_ANGLE)) * range;
-      nv = Math.round(Math.max(MIN_RATE, Math.min(MAX_RATE, nv)));
-      onChange(nv);
-    };
-    const handleEnd = () => {
-      dragging.current = false;
-      window.removeEventListener("mousemove", handleMove); window.removeEventListener("mouseup", handleEnd);
-      window.removeEventListener("touchmove", handleMove); window.removeEventListener("touchend", handleEnd);
-    };
-    window.addEventListener("mousemove", handleMove); window.addEventListener("mouseup", handleEnd);
-    window.addEventListener("touchmove", handleMove, { passive: false }); window.addEventListener("touchend", handleEnd);
-  }, [value, onChange, getAngleFromEvent]);
-  const r = size / 2 - 8, notchR = r - 6, labelR = r + 14;
-  return (
-    <svg ref={svgRef} width={size + 30} height={size + 30}
-      viewBox={`${-(size / 2 + 15)} ${-(size / 2 + 15)} ${size + 30} ${size + 30}`}
-      style={{ cursor: "grab", touchAction: "none", userSelect: "none" }}
-      onMouseDown={handleStart} onTouchStart={handleStart}>
-      {(() => { const sA = ((MIN_ANGLE - 90) * Math.PI) / 180, eA = ((MAX_ANGLE - 90) * Math.PI) / 180; return <path d={`M ${r * Math.cos(sA)} ${r * Math.sin(sA)} A ${r} ${r} 0 1 1 ${r * Math.cos(eA)} ${r * Math.sin(eA)}`} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={4} strokeLinecap="round" />; })()}
-      {(() => { const sA = ((MIN_ANGLE - 90) * Math.PI) / 180, eA = ((angle - 90) * Math.PI) / 180; return <path d={`M ${r * Math.cos(sA)} ${r * Math.sin(sA)} A ${r} ${r} 0 ${angle - MIN_ANGLE > 180 ? 1 : 0} 1 ${r * Math.cos(eA)} ${r * Math.sin(eA)}`} fill="none" stroke={color.bg} strokeWidth={4} strokeLinecap="round" opacity={0.7} />; })()}
-      {notchAngles.map(({ angle: na, label }) => { const a = ((na - 90) * Math.PI) / 180; return (<g key={label}><line x1={(notchR-4)*Math.cos(a)} y1={(notchR-4)*Math.sin(a)} x2={(notchR+4)*Math.cos(a)} y2={(notchR+4)*Math.sin(a)} stroke="rgba(255,255,255,0.2)" strokeWidth={1.5}/><text x={labelR*Math.cos(a)} y={labelR*Math.sin(a)} fill="rgba(255,255,255,0.3)" fontSize={8} textAnchor="middle" dominantBaseline="central" style={{fontFamily:"'JetBrains Mono Variable',monospace"}}>{label}</text></g>); })}
-      {(() => { const a = ((angle - 90) * Math.PI) / 180; const px = (r-16)*Math.cos(a), py = (r-16)*Math.sin(a); return (<><line x1={0} y1={0} x2={px} y2={py} stroke={color.bg} strokeWidth={2.5} strokeLinecap="round"/><circle cx={px} cy={py} r={4} fill={color.bg} filter={`drop-shadow(0 0 4px ${color.glow})`}/></>); })()}
-      <circle cx={0} cy={0} r={18} fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.1)" strokeWidth={1}/>
-      <text x={0} y={1} fill={color.bg} fontSize={12} fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{fontFamily:"'JetBrains Mono Variable',monospace"}}>{Math.round(value)}</text>
-    </svg>
-  );
-}
-
-/* ─── Timbre Picker ─── */
-function TimbrePicker({ current, onSelect, onClose, color }) {
-  return (
-    <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 100, marginTop: 4, background: "#111118", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 12, minWidth: 280, boxShadow: "0 12px 40px rgba(0,0,0,0.7)" }}>
-      {TIMBRE_GROUPS.map((group) => (
-        <div key={group} style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", letterSpacing: 2, marginBottom: 6, paddingLeft: 4 }}>{group.toUpperCase()}</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-            {TIMBRES.filter((t) => t.group === group).map((t) => (
-              <button key={t.id} onClick={() => { onSelect(t.id); onClose(); }} title={t.desc}
-                style={{ background: current === t.id ? `${color.bg}22` : "rgba(255,255,255,0.03)", border: `1px solid ${current === t.id ? `${color.bg}66` : "rgba(255,255,255,0.06)"}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer", color: current === t.id ? color.bg : "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'JetBrains Mono Variable', monospace", transition: "all 0.15s" }}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ─── Step Sequencer (melody editor) with ties + drag reorder ─── */
-function StepSequencer({ steps, onChange, color, currentStep, isPercTimbre, scaleNotes }) {
-  const [dragIdx, setDragIdx] = useState(null);
-  const [overIdx, setOverIdx] = useState(null);
-  const dragRef = useRef(null);
-  const stepsRef = useRef(null);
-
-  const addStep = () => {
-    if (steps.length >= MAX_STEPS) return;
-    const lastNote = steps[steps.length - 1]?.note || "C4";
-    onChange([...steps, { note: lastNote, active: true, tied: false }]);
-  };
-  const removeStep = (i) => {
-    if (steps.length <= 1) return;
-    const newSteps = steps.filter((_, j) => j !== i);
-    // If removing caused step 0 to be tied, untie it
-    if (newSteps[0]) newSteps[0] = { ...newSteps[0], tied: false };
-    onChange(newSteps);
-  };
-  const updateStep = (i, updates) => {
-    onChange(steps.map((s, j) => j === i ? { ...s, ...updates } : s));
-  };
-  const toggleTie = (i) => {
-    if (i === 0) return; // can't tie the first step
-    const prev = steps[i - 1];
-    const curr = steps[i];
-    // Can only tie if same note (for pitched) or both active (for perc)
-    if (!isPercTimbre && prev.note !== curr.note) return;
-    updateStep(i, { tied: !curr.tied });
-  };
-  const canTie = (i) => {
-    if (i === 0 || isPercTimbre) return false;
-    return steps[i - 1]?.note === steps[i]?.note;
-  };
-
-  /* ─── Drag reorder ─── */
-  const handleDragStart = (e, i) => {
-    setDragIdx(i);
-    dragRef.current = i;
-    e.dataTransfer.effectAllowed = "move";
-    // Minimal ghost
-    const el = e.currentTarget;
-    const ghost = el.cloneNode(true);
-    ghost.style.opacity = "0.6";
-    ghost.style.position = "absolute";
-    ghost.style.top = "-9999px";
-    document.body.appendChild(ghost);
-    e.dataTransfer.setDragImage(ghost, 26, 20);
-    setTimeout(() => document.body.removeChild(ghost), 0);
-  };
-  const handleDragOver = (e, i) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setOverIdx(i);
-  };
-  const handleDrop = (e, i) => {
-    e.preventDefault();
-    const from = dragRef.current;
-    if (from === null || from === i) { setDragIdx(null); setOverIdx(null); return; }
-    const newSteps = [...steps];
-    const [moved] = newSteps.splice(from, 1);
-    newSteps.splice(i, 0, moved);
-    // Fix ties after reorder: untie first step, untie any step whose prev note differs
-    newSteps.forEach((s, j) => {
-      if (j === 0) s.tied = false;
-      else if (s.tied && newSteps[j - 1].note !== s.note) s.tied = false;
-    });
-    onChange(newSteps);
-    setDragIdx(null);
-    setOverIdx(null);
-  };
-  const handleDragEnd = () => { setDragIdx(null); setOverIdx(null); };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-      <div ref={stepsRef} style={{ display: "flex", alignItems: "flex-start", gap: 0, flexWrap: "wrap" }}>
-        {steps.map((step, i) => {
-          const isDragging = dragIdx === i;
-          const isOver = overIdx === i && dragIdx !== null && dragIdx !== i;
-          const isTied = step.tied && i > 0;
-          const nextIsTied = i < steps.length - 1 && steps[i + 1]?.tied;
-          const tieConnectable = canTie(i);
-
-          return (
-            <div key={i} style={{ display: "flex", alignItems: "flex-start", position: "relative" }}>
-              {/* Tie connector bar (before this step) */}
-              {isTied && (
-                <div style={{
-                  width: 8, height: 2, background: color.bg, opacity: 0.5,
-                  alignSelf: "center", marginTop: 10, marginLeft: -1, marginRight: -1,
-                  borderRadius: 1,
-                }} />
-              )}
-              {/* Drop indicator */}
-              {isOver && (
-                <div style={{
-                  position: "absolute", left: -2, top: 6, bottom: 6,
-                  width: 3, background: color.bg, borderRadius: 2,
-                  boxShadow: `0 0 8px ${color.glow}`, zIndex: 10,
-                }} />
-              )}
-              <div
-                draggable
-                onDragStart={(e) => handleDragStart(e, i)}
-                onDragOver={(e) => handleDragOver(e, i)}
-                onDrop={(e) => handleDrop(e, i)}
-                onDragEnd={handleDragEnd}
-                style={{
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-                  padding: "2px 3px", cursor: "grab",
-                  opacity: isDragging ? 0.3 : 1,
-                  transition: "opacity 0.15s",
-                }}
-              >
-                {/* Active step highlight */}
-                <div style={{
-                  width: 4, height: 4, borderRadius: "50%",
-                  background: currentStep === i ? color.bg : "transparent",
-                  boxShadow: currentStep === i ? `0 0 6px ${color.glow}` : "none",
-                  transition: "all 0.05s", marginBottom: 1,
-                }} />
-                {/* Note selector or toggle for perc */}
-                {isPercTimbre ? (
-                  <button
-                    onClick={() => updateStep(i, { active: !step.active })}
-                    style={{
-                      width: 32, height: 32, borderRadius: 6, cursor: "pointer",
-                      background: step.active ? `${color.bg}${currentStep === i ? '44' : '22'}` : "rgba(255,255,255,0.02)",
-                      border: `1px solid ${step.active ? `${color.bg}${currentStep === i ? '88' : '44'}` : "rgba(255,255,255,0.06)"}`,
-                      color: step.active ? color.bg : "rgba(255,255,255,0.15)",
-                      fontSize: 10, fontFamily: "'JetBrains Mono Variable', monospace", transition: "all 0.1s",
-                    }}
-                  >{step.active ? "●" : "○"}</button>
-                ) : (
-                  <select
-                    value={step.note}
-                    onChange={(e) => {
-                      const newNote = e.target.value;
-                      const updated = [...steps];
-                      updated[i] = { ...updated[i], note: newNote };
-                      // Auto-untie if note no longer matches neighbors
-                      if (updated[i].tied && i > 0 && updated[i - 1].note !== newNote) {
-                        updated[i].tied = false;
-                      }
-                      if (i < updated.length - 1 && updated[i + 1]?.tied && updated[i + 1].note !== newNote) {
-                        updated[i + 1] = { ...updated[i + 1], tied: false };
-                      }
-                      onChange(updated);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      width: 52, height: 30, borderRadius: isTied ? "2px 5px 5px 2px" : nextIsTied ? "5px 2px 2px 5px" : 5,
-                      cursor: "pointer",
-                      background: isTied
-                        ? `${color.bg}${currentStep === i ? '33' : '15'}`
-                        : currentStep === i ? `${color.bg}22` : "rgba(255,255,255,0.04)",
-                      borderTop: `1px solid ${isTied ? `${color.bg}55` : currentStep === i ? `${color.bg}66` : "rgba(255,255,255,0.08)"}`,
-                      borderRight: `1px solid ${isTied ? `${color.bg}55` : currentStep === i ? `${color.bg}66` : "rgba(255,255,255,0.08)"}`,
-                      borderBottom: `1px solid ${isTied ? `${color.bg}55` : currentStep === i ? `${color.bg}66` : "rgba(255,255,255,0.08)"}`,
-                      borderLeft: `1px solid ${isTied ? `${color.bg}33` : currentStep === i ? `${color.bg}66` : "rgba(255,255,255,0.08)"}`,
-                      color: currentStep === i ? color.bg : isTied ? `${color.bg}aa` : "rgba(255,255,255,0.5)",
-                      fontSize: 10, fontFamily: "'JetBrains Mono Variable', monospace",
-                      outline: "none", textAlign: "center", padding: "0 2px", transition: "all 0.1s",
-                    }}
-                  >
-                    {(scaleNotes || NOTES).map((n) => <option key={n} value={n} style={{ background: "#0a0a0f", color: "#ddd" }}>{n}</option>)}
-                  </select>
-                )}
-                {/* Tie + Remove row */}
-                <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-                  {/* Tie toggle */}
-                  {!isPercTimbre && i > 0 && (
-                    <button
-                      onClick={() => toggleTie(i)}
-                      title={isTied ? "Untie from previous" : tieConnectable ? "Tie to previous (same note)" : "Set same note to tie"}
-                      style={{
-                        width: 16, height: 14, borderRadius: 3, border: "none",
-                        background: isTied ? `${color.bg}33` : "transparent",
-                        color: isTied ? color.bg : tieConnectable ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.06)",
-                        fontSize: 9, cursor: tieConnectable || isTied ? "pointer" : "default",
-                        padding: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                        fontFamily: "'JetBrains Mono Variable', monospace",
-                      }}
-                    >⌒</button>
-                  )}
-                  {/* Remove step */}
-                  {steps.length > 1 && (
-                    <button onClick={() => removeStep(i)}
-                      style={{
-                        width: 14, height: 14, borderRadius: "50%", border: "none",
-                        background: "transparent", color: "rgba(255,255,255,0.12)",
-                        fontSize: 8, cursor: "pointer", padding: 0,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}
-                    >✕</button>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        {/* Add step */}
-        {steps.length < MAX_STEPS && (
-          <div style={{ padding: "2px 3px", display: "flex", alignItems: "flex-start", paddingTop: 9 }}>
-            <button onClick={addStep}
-              style={{
-                width: 32, height: 32, borderRadius: 6, cursor: "pointer",
-                background: "transparent", border: "1px dashed rgba(255,255,255,0.1)",
-                color: "rgba(255,255,255,0.15)", fontSize: 14,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontFamily: "'JetBrains Mono Variable', monospace",
-              }}>+</button>
-          </div>
-        )}
-      </div>
-      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.1)", fontFamily: "'JetBrains Mono Variable', monospace" }}>
-        {steps.length === 1 ? "mono · add steps for melody" :
-          `${steps.length} steps · drag to reorder · ⌒ ties same notes`}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Pulse Indicator ─── */
-function PulseRing({ active, color }) {
-  return (
-    <div style={{
-      width: 10, height: 10, borderRadius: "50%",
-      background: active ? color.bg : "rgba(255,255,255,0.05)",
-      boxShadow: active ? `0 0 12px ${color.glow}, 0 0 24px ${color.glow}` : "none",
-      transition: "all 0.06s ease-out",
-    }} />
-  );
-}
-
-/* ─── Voice Line ─── */
-function VoiceLine({ line, index, color, onUpdate, onRemove, playing, currentStepIndex, scaleNotes }) {
-  const [pulse, setPulse] = useState(false);
-  const [showTimbrePicker, setShowTimbrePicker] = useState(false);
-  const pulseTimer = useRef(null);
-  const timbreInfo = TIMBRES.find((t) => t.id === line.timbre) || TIMBRES[0];
-  const isPercTimbre = timbreInfo.group === "Perc";
-
-  useEffect(() => {
-    if (!playing) { setPulse(false); return; }
-    const measureMs = (60 / BPM_DEFAULT) * 4 * 1000;
-    const intervalMs = measureMs / line.rate;
-    let mounted = true;
-    const tick = () => { if (!mounted || line.muted) return; setPulse(true); setTimeout(() => mounted && setPulse(false), 80); };
-    tick();
-    pulseTimer.current = setInterval(tick, intervalMs);
-    return () => { mounted = false; clearInterval(pulseTimer.current); };
-  }, [playing, line.rate, line.muted]);
-
-  return (
-    <div className="dl-voice-card" style={{
-      background: "rgba(255,255,255,0.02)", border: `1px solid ${line.muted ? "rgba(255,255,255,0.04)" : `${color.bg}22`}`,
-      borderRadius: 16, padding: "20px 24px",
-      opacity: line.muted ? 0.4 : 1, transition: "all 0.3s ease",
-    }}>
-      <div className="dl-voice-row" style={{ display: "flex", alignItems: "center", gap: 20 }}>
-        <div className="dl-top-row" style={{ display: "contents" }}>
-          {/* Pulse + Index */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, minWidth: 30 }}>
-            <PulseRing active={pulse && !line.muted} color={color} />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono Variable', monospace" }}>{String(index + 1).padStart(2, "0")}</span>
-          </div>
-
-          {/* Dial */}
-          <div className="dl-dial-wrap" style={{ flexShrink: 0 }}>
-            <RateDial value={line.rate} onChange={(r) => onUpdate({ ...line, rate: r })} color={color} size={90} />
-          </div>
-
-          {/* Mute + Remove */}
-          <div className="dl-mute-col" style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "center", marginLeft: "auto" }}>
-            <button onClick={() => onUpdate({ ...line, muted: !line.muted })}
-              style={{ background: line.muted ? "rgba(255,255,255,0.06)" : `${color.bg}18`, border: `1px solid ${line.muted ? "rgba(255,255,255,0.08)" : `${color.bg}44`}`, borderRadius: 8, width: 36, height: 36, cursor: "pointer", color: line.muted ? "rgba(255,255,255,0.3)" : color.bg, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-              title={line.muted ? "Unmute" : "Mute"}>
-              {line.muted ? "◇" : "◆"}
-            </button>
-            <button onClick={onRemove}
-              style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, width: 36, height: 36, cursor: "pointer", color: "rgba(255,255,255,0.2)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}
-              title="Remove">✕</button>
-          </div>
-        </div>
-
-        <div className="dl-controls" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ position: "relative" }}>
-              <button onClick={() => setShowTimbrePicker(!showTimbrePicker)}
-                style={{ background: `${color.bg}12`, border: `1px solid ${color.bg}44`, borderRadius: 8, padding: "5px 12px", cursor: "pointer", color: color.bg, fontSize: 11, fontFamily: "'JetBrains Mono Variable', monospace", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }}>
-                <span style={{ fontSize: 13 }}>{isPercTimbre ? "◈" : timbreInfo.group === "FM" ? "◎" : timbreInfo.group === "Synth" ? "◉" : timbreInfo.group === "Instrument" ? "♪" : "○"}</span>
-                {timbreInfo.label}
-                <span style={{ fontSize: 8, opacity: 0.5 }}>▼</span>
-              </button>
-              {showTimbrePicker && (<>
-                <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setShowTimbrePicker(false)} />
-                <TimbrePicker current={line.timbre} onSelect={(t) => onUpdate({ ...line, timbre: t })} onClose={() => setShowTimbrePicker(false)} color={color} />
-              </>)}
-            </div>
-            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.12)", fontStyle: "italic" }}>{timbreInfo.desc}</span>
-          </div>
-
-          {/* Sequence (always visible) */}
-          <StepSequencer
-            steps={line.steps}
-            onChange={(newSteps) => onUpdate({ ...line, steps: newSteps })}
-            color={color}
-            currentStep={playing && !line.muted ? currentStepIndex : -1}
-            isPercTimbre={isPercTimbre}
-            scaleNotes={scaleNotes}
-          />
-
-          {/* Volume */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono Variable', monospace", minWidth: 24 }}>VOL</span>
-            <input type="range" min={-30} max={0} step={1} value={line.volume} onChange={(e) => onUpdate({ ...line, volume: Number(e.target.value) })} style={{ flex: 1, accentColor: color.bg, height: 3 }} />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'JetBrains Mono Variable', monospace", minWidth: 30, textAlign: "right" }}>{line.volume}dB</span>
-          </div>
-          {/* Pan */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono Variable', monospace", minWidth: 24 }}>PAN</span>
-            <input type="range" min={-100} max={100} step={1} value={Math.round((line.pan || 0) * 100)}
-              onChange={(e) => onUpdate({ ...line, pan: Number(e.target.value) / 100 })}
-              style={{ flex: 1, accentColor: color.bg, height: 3 }} />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'JetBrains Mono Variable', monospace", minWidth: 30, textAlign: "right" }}>
-              {(line.pan || 0) === 0 ? "C" : (line.pan || 0) < 0 ? `L${Math.abs(Math.round((line.pan||0)*100))}` : `R${Math.round((line.pan||0)*100)}`}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── PRESETS ─── */
-const PRESETS = [
-  {
-    name: "Reich Pulse",
-    desc: "Classic polyrhythm texture",
-    root: "C", scale: "Reich Pulse", bpm: 120, octLo: 4, octHi: 5,
-    voices: 5, reverb: 0.25, delay: 0.1, delaySyncIdx: 2, timbre: "kalimba",
-  },
-  {
-    name: "Eno Ambient",
-    desc: "Floating, spacious, still",
-    root: "D", scale: "Eno", bpm: 72, octLo: 3, octHi: 5,
-    voices: 3, reverb: 0.6, delay: 0.25, delaySyncIdx: 3, timbre: "vibes",
-  },
-  {
-    name: "Young Drone",
-    desc: "Deep meditative fifths",
-    root: "C", scale: "Young", bpm: 60, octLo: 3, octHi: 4,
-    voices: 3, reverb: 0.7, delay: 0.08, delaySyncIdx: 2, timbre: "organ",
-  },
-  {
-    name: "Riley In C",
-    desc: "Kinetic, modal, layered",
-    root: "C", scale: "Riley", bpm: 138, octLo: 3, octHi: 5,
-    voices: 6, reverb: 0.2, delay: 0.15, delaySyncIdx: 1, timbre: "kalimba",
-  },
-  {
-    name: "Pärt Still",
-    desc: "Luminous triadic bells",
-    root: "C", scale: "Pärt", bpm: 76, octLo: 4, octHi: 5,
-    voices: 3, reverb: 0.5, delay: 0.12, delaySyncIdx: 3, timbre: "fm_bell",
-  },
-  {
-    name: "Xenakis Stochastic",
-    desc: "Stochastic, jagged, dense",
-    root: "C", scale: "Xenakis", bpm: 152, octLo: 4, octHi: 5,
-    voices: 7, reverb: 0.1, delay: 0.05, delaySyncIdx: 0, timbre: "click",
-  },
-  {
-    name: "Ligeti Swarm",
-    desc: "Dense chromatic swarm",
-    root: "C", scale: "Ligeti", bpm: 132, octLo: 4, octHi: 5,
-    voices: 8, reverb: 0.3, delay: 0.05, delaySyncIdx: 0, timbre: "sine",
-  },
-  {
-    name: "Chaos",
-    desc: "12-tone, dense, unhinged",
-    root: "C", scale: "12-Tone", bpm: 140, octLo: 3, octHi: 6,
-    voices: 7, reverb: 0.15, delay: 0.2, delaySyncIdx: 0, timbre: "kalimba",
-  },
-];
-
-/* ─── Main App ─── */
 export default function Driftloom() {
   const [rootNote, setRootNote] = useState("C");
   const [scaleName, setScaleName] = useState("Reich Pulse");
@@ -879,20 +31,10 @@ export default function Driftloom() {
   linesRef.current = lines;
   const scaleNotes = getScaleNotes(rootNote, scaleName, octLo, octHi);
 
-  // Delay sync options: label, fraction of beat
-  const DELAY_SYNCS = [
-    { label: "1/16", mult: 0.25 },
-    { label: "1/8", mult: 0.5 },
-    { label: "d1/8", mult: 0.75 },
-    { label: "1/4", mult: 1 },
-    { label: "d1/4", mult: 1.5 },
-    { label: "1/2", mult: 2 },
-  ];
-
   // ─── Global Effects Bus ───
   const [reverbMix, setReverbMix] = useState(0.3);
   const [delayMix, setDelayMix] = useState(0.15);
-  const [delaySyncIdx, setDelaySyncIdx] = useState(2); // default dotted 1/8
+  const [delaySyncIdx, setDelaySyncIdx] = useState(2);
   const reverbRef = useRef(null);
   const delayRef = useRef(null);
   const dryRef = useRef(null);
@@ -900,14 +42,12 @@ export default function Driftloom() {
   const delayGainRef = useRef(null);
   const limiterRef = useRef(null);
 
-  // Compute delay time from BPM and sync (clamped to 1s max for Tone.js)
   const delayTimeSec = Math.min((60 / bpm) * DELAY_SYNCS[delaySyncIdx].mult, 1.0);
 
-  // Initialize effects once (with limiter on master)
   useEffect(() => {
     const limiter = new Tone.Limiter(-3).toDestination();
     const masterGain = new Tone.Gain(0).connect(limiter);
-    masterGain.gain.value = Math.pow(10, masterVol / 20); // dB to linear
+    masterGain.gain.value = Math.pow(10, masterVol / 20);
     const rev = new Tone.Reverb({ decay: 3.5, preDelay: 0.02 }).connect(masterGain);
     const del = new Tone.FeedbackDelay({ delayTime: 0.375, feedback: 0.35, wet: 1 }).connect(masterGain);
     const dry = new Tone.Gain(1).connect(masterGain);
@@ -925,7 +65,6 @@ export default function Driftloom() {
     };
   }, []);
 
-  // Update effect params when controls change
   useEffect(() => {
     if (reverbGainRef.current) reverbGainRef.current.gain.value = reverbMix;
   }, [reverbMix]);
@@ -938,7 +77,6 @@ export default function Driftloom() {
   }, [masterVol]);
 
   const startAudio = useCallback(async () => {
-    // Force iOS to route Web Audio to the loudspeaker instead of earpiece
     if (navigator.audioSession) navigator.audioSession.type = "playback";
     const a = document.createElement("audio");
     a.src = "/silence.wav";
@@ -952,7 +90,6 @@ export default function Driftloom() {
 
   useEffect(() => { Tone.getTransport().bpm.value = bpm; }, [bpm]);
 
-  // Helper to create a loop for a given line
   const createLoop = useCallback((line, synth, intervalSec) => {
     const lineId = line.id;
     const loop = new Tone.Loop((time) => {
@@ -980,12 +117,10 @@ export default function Driftloom() {
     return loop;
   }, [bpm]);
 
-  // Track pending rate changes to apply at measure boundary
-  const pendingRates = useRef({}); // { [id]: rate }
+  const pendingRates = useRef({});
   const measureClockRef = useRef(null);
-  const prevRatesRef = useRef({}); // track last-applied rates
+  const prevRatesRef = useRef({});
 
-  // Master measure clock — fires at start of each measure, applies pending changes
   useEffect(() => {
     if (!playing) {
       if (measureClockRef.current) { measureClockRef.current.dispose(); measureClockRef.current = null; }
@@ -994,12 +129,10 @@ export default function Driftloom() {
     const measureSec = (60 / bpm) * 4;
     if (measureClockRef.current) measureClockRef.current.dispose();
     measureClockRef.current = new Tone.Loop((time) => {
-      // Apply any pending rate changes
       const pending = { ...pendingRates.current };
       if (Object.keys(pending).length === 0) return;
       pendingRates.current = {};
 
-      // Reset step counters for changed lines and rebuild their loops
       Object.entries(pending).forEach(([id, newRate]) => {
         const numId = Number(id);
         stepCounters.current[numId] = 0;
@@ -1023,7 +156,6 @@ export default function Driftloom() {
     if (!playing) return;
     const activeIds = new Set(lines.map((l) => l.id));
 
-    // Clean up removed lines
     Object.keys(synthsRef.current).forEach((id) => {
       if (!activeIds.has(Number(id))) {
         loopsRef.current[id]?.dispose();
@@ -1046,7 +178,6 @@ export default function Driftloom() {
       if (!stepCounters.current[id]) stepCounters.current[id] = 0;
 
       if (needsNewSynth) {
-        // Dispose old
         if (existing) {
           loopsRef.current[id]?.dispose();
           if (existing._parentSynth) existing._parentSynth.dispose();
@@ -1075,18 +206,14 @@ export default function Driftloom() {
         if (voice.volume) voice.volume.value = line.muted ? -Infinity : line.volume;
         if (pannersRef.current[id]) pannersRef.current[id].pan.value = line.pan || 0;
 
-        // Check if rate changed — queue it for next measure boundary
         const prevRate = prevRatesRef.current[id];
         if (prevRate !== undefined && prevRate !== line.rate) {
           pendingRates.current[id] = line.rate;
-          // Don't rebuild loop now — measure clock will handle it
         } else if (prevRate === undefined) {
-          // First time — just set it
           if (loopsRef.current[id]) loopsRef.current[id].dispose();
           loopsRef.current[id] = createLoop(line, existing, intervalSec);
           prevRatesRef.current[id] = line.rate;
         }
-        // Other changes (volume, pan, steps) still apply immediately
       }
     });
   }, [lines, playing, bpm, createLoop]);
@@ -1262,7 +389,7 @@ export default function Driftloom() {
               letterSpacing: 0.5, transition: "all 0.2s",
             }}
             onMouseEnter={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.2)"; e.target.style.color = "rgba(255,255,255,0.6)"; }}
-            onMouseLeave={(e) => { 
+            onMouseLeave={(e) => {
               const active = scaleName === p.scale && bpm === p.bpm;
               e.target.style.borderColor = active ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.06)";
               e.target.style.color = active ? "#e8e8ec" : "rgba(255,255,255,0.35)";
