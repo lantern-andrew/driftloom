@@ -938,9 +938,13 @@ export default function Driftloom() {
   }, [masterVol]);
 
   const startAudio = useCallback(async () => {
-    // Play a silent HTML5 audio element to force iOS to route Web Audio to the loudspeaker
-    const a = new Audio("/silence.wav");
-    a.play().catch(() => {});
+    // Force iOS to route Web Audio to the loudspeaker instead of earpiece
+    if (navigator.audioSession) navigator.audioSession.type = "playback";
+    const a = document.createElement("audio");
+    a.src = "/silence.wav";
+    a.setAttribute("playsinline", "");
+    document.body.appendChild(a);
+    a.play().catch(() => {}).finally(() => a.remove());
     await Tone.start();
     Tone.getTransport().bpm.value = bpm;
     if (!transportStarted.current) { Tone.getTransport().start(); transportStarted.current = true; }
